@@ -1,13 +1,13 @@
-import math ,random,numpy as np
+import math ,random,numpy as np,matplotlib.pyplot as plt
 
-# def Knapback_III(K):
-#     base_weight = np.array([1,2,3,4,5,6,7,8,9,10])
-#     num_repeat = (K//10)+1
-#     item_weight = np.tile(base_weight,num_repeat)[:K]
-#     item_price = item_weight + 5
-#     Capacity = 0.5 * np.sum(item_weight)
+def Knapback_III(K):
+    base_weight = np.array([1,2,3,4,5,6,7,8,9,10])
+    num_repeat = (K//10)+1
+    item_weight = np.tile(base_weight,num_repeat)[:K]
+    item_price = item_weight + 5
+    Capacity = 0.5 * np.sum(item_weight)
 
-#     return item_weight,item_price,Capacity
+    return item_weight,item_price,Capacity
 
 def weight(solution,item_weight):
     total = 0
@@ -38,7 +38,7 @@ def measure(qubits):
         else:
             solution.append(1)
     return solution
-def update_qubits(K,N,qubits,population,theta):
+def update_qubits(K,N,qubits,population,theta,t):
     population.sort(key=lambda x:x[1],reverse=True)
     for i in range(1,(N//2)+1):
         best = population[i-1][0]
@@ -48,9 +48,12 @@ def update_qubits(K,N,qubits,population,theta):
 
             alpha,beta = qubits[j]
 
-            if best[j]==1 and worst[j]==0:  delta = theta/i
-            elif best[j]==0 and worst[j]==1:    delta = theta/i
-            else:   delta=0
+            if best[j]==1 and worst[j]==0:  
+                delta = theta*(1-t/ITER)
+            elif best[j]==0 and worst[j]==1:    
+                delta = theta*(1-t/ITER)
+            else:   
+                delta=0
 
             alpha_lamda = alpha*math.cos(delta) - beta*math.sin(delta)
             beta_lamda = alpha*math.sin(delta) + beta*math.cos(delta)
@@ -84,37 +87,46 @@ def evaluate(solution,item_price):
     return sum(p for bit,p in zip(solution, item_price) if bit ==1)
 
 def Iteraion(item,p_size,ITER,theta,item_weight,item_price,capacity):
+    fitness_history = []
     qubits = Initalize_Qubit(item)
     sb= None
-    t=0
     for t in range(ITER+1):
         population = Initalize_population(p_size,qubits,item_weight,item_price,capacity)    #更新Population
         population.sort(key=lambda x:x[1], reverse=True)
-        
+
         if sb is None or population[0][1] >sb[1]:
             sb = population[0]
 
-        qubits= update_qubits(item,p_size,qubits,population,theta)
+        qubits= update_qubits(item,p_size,qubits,population,theta,t)
 
         b = population[0]
-
+        
         if b[1] > sb[1]:
             sb = b
+        elite = sb
+        if elite not in population:
+            population.append(elite)
+            population.sort(key=lambda x:x[1],reverse=True)
+            population = population[:p_size]
 
-        print(f"iter{t}:best fitness = {population[0][1]}")
-    return sb
+        fitness_history.append(population[0][1])
+        print(f"Iteration-{t}:best fitness = {population[0][1]}")
+        #return sb
+    return fitness_history
 
+def chart(p):
+    plt.xlabel("Iteraion")
+    plt.ylabel("Fitness")
+
+    plt.plot(range(len(p)),p,marker="o",markersize=0,label="Fitness")
+    plt.show()
 if __name__ == "__main__":
-    item=250 #物品數 K
-    p_size=50 #族群大小(Population size)N
-    ITER=200  #迭帶次數 
+    item=500 #物品數 K
+    p_size=10 #族群大小(Population size)N
+    ITER=1000 #迭帶次數 
     theta=0.01*math.pi #旋轉角度
 
-    base_weight = np.array([1,2,3,4,5,6,7,8,9,10])
-    num_repeat = (item//10)+1
-    item_weight = np.tile(base_weight,num_repeat)[:item]
+    item_weight,item_price,capacity = Knapback_III(item)
 
-    item_price =item_weight+5
-    capacity=0.5*np.sum(item_weight)
-
-    Iteraion(item,p_size,ITER,theta,item_weight,item_price,capacity)
+    chart(Iteraion(item,p_size,ITER,theta,item_weight,item_price,capacity))
+    
