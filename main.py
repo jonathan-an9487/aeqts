@@ -16,7 +16,7 @@ def weight(solution,item_weight):
             total += w 
     return total
 
-def Repair (solution,item_weight,capacity):
+def Repair (solution,item_weight,item_price,capacity):
     sol = solution[:]
 
     while weight(sol,item_weight)>capacity:
@@ -38,28 +38,39 @@ def measure(qubits):
         else:
             solution.append(1)
     return solution
-def update_qubits(K,N,qubits,population,theta,t):
+def update_qubits(K,N,qubits,population,theta,t,ITER):
     population.sort(key=lambda x:x[1],reverse=True)
-    for i in range(1,(N//2)+1):
-        best = population[i-1][0]
-        worst = population[-i][0]
+    num_pairs = N//2
+
+    for pair_idx in range(num_pairs):
+        best_sol = population[pair_idx][0]
+        worst_sol = population[N-1-pair_idx][0]
+
+        pair_factor = pair_idx+1
+        time_factor = 1-t/ITER
+        current_theta = theta*time_factor/pair_factor
+        
+        current_theta = max(min(current_theta,math.pi/4), -math.pi/4)
 
         for j in range(K):
 
             alpha,beta = qubits[j]
-
-            if best[j]==1 and worst[j]==0:  
-                delta = theta*(1-t/ITER)
-            elif best[j]==0 and worst[j]==1:    
-                delta = theta*(1-t/ITER)
+            
+            if best_sol[j]==1 and worst_sol[j]==0:  
+                delta = current_theta #theta*(1-t/ITER)
+            elif best_sol[j]==0 and worst_sol[j]==1:    
+                delta = -current_theta #theta*(1-t/ITER)
             else:   
                 delta=0
 
-            alpha_lamda = alpha*math.cos(delta) - beta*math.sin(delta)
-            beta_lamda = alpha*math.sin(delta) + beta*math.cos(delta)
+            alpha_lambda = alpha*math.cos(delta) - beta*math.sin(delta)
+            beta_lambda = alpha*math.sin(delta) + beta*math.cos(delta)
 
-            norm = math.sqrt(alpha_lamda**2 + beta_lamda**2)
-            qubits[j] = [alpha_lamda/norm,beta_lamda/norm]
+            norm = math.sqrt(alpha_lambda**2 + beta_lambda**2)
+            if norm>0:
+                qubits[j] = [alpha_lambda/norm,beta_lambda/norm]
+            else :
+                qubits[j] = [alpha,beta]
 
     return qubits
 
@@ -76,7 +87,7 @@ def Initalize_population(N,qubits,item_weight,item_price,capacity):
     for i in range(N):
         sol = measure(qubits)#測量
         if  weight(sol,item_weight)> capacity:
-            sol = Repair(sol,item_weight,capacity) 
+            sol = Repair(sol,item_weight,item_price,capacity) 
 
         fitness = evaluate(sol,item_price)
         population.append((sol,fitness))
@@ -97,19 +108,19 @@ def Iteraion(item,p_size,ITER,theta,item_weight,item_price,capacity):
         if sb is None or population[0][1] >sb[1]:
             sb = population[0]
 
-        qubits= update_qubits(item,p_size,qubits,population,theta,t)
+        if t <ITER:
+            qubits= update_qubits(item,p_size,qubits,population,theta,t,ITER)
 
         b = population[0]
         
-        if b[1] > sb[1]:
-            sb = b
-        elite = sb
-        if elite not in population:
+        if sb[1] > b[1]:
+            elite = sb
             population.append(elite)
             population.sort(key=lambda x:x[1],reverse=True)
             population = population[:p_size]
 
         fitness_history.append(population[0][1])
+
         print(f"Iteration-{t}:best fitness = {population[0][1]}")
         #return sb
     return fitness_history
@@ -117,16 +128,15 @@ def Iteraion(item,p_size,ITER,theta,item_weight,item_price,capacity):
 def chart(p):
     plt.xlabel("Iteraion")
     plt.ylabel("Fitness")
-
+    plt.grid(True)
     plt.plot(range(len(p)),p,marker="o",markersize=0,label="Fitness")
     plt.show()
+
 if __name__ == "__main__":
-    item=500 #物品數 K
+    item=2000 #物品數 K
     p_size=10 #族群大小(Population size)N
     ITER=1000 #迭帶次數 
     theta=0.01*math.pi #旋轉角度
 
     item_weight,item_price,capacity = Knapback_III(item)
-
     chart(Iteraion(item,p_size,ITER,theta,item_weight,item_price,capacity))
-    
